@@ -1,17 +1,24 @@
-import { useState, useEffect } from 'react';
-import Navbar from './components/Navbar';
-import QuoterScreen from './components/QuoterScreen';
-import BookingWizardScreen from './components/BookingWizardScreen';
-import AdminScreen from './components/AdminScreen';
-import AiChatWidget from './components/AiChatWidget';
+import React, { useState, useEffect } from 'react';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import Box from '@mui/material/Box';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import 'dayjs/locale/es';
+import { theme } from './styles/theme';
+import { AuthProvider } from './context/AuthContext';
+import { Header, Footer } from './components/layout';
+import QuoterPage from './pages/QuoterPage';
+import BookingWizardPage from './pages/BookingWizardPage';
+import AdminPage from './pages/AdminPage';
+import { ChatWidget } from './features/ai-assistant';
 import { RoomSize, QuoteResponse } from './types';
+import { LOCAL_STORAGE_KEYS } from './utils/constants';
 
-export default function App() {
+export const AppContent: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<'quoter' | 'wizard' | 'admin'>('quoter');
-  const [currentUserRole, setCurrentUserRole] = useState<'CLIENT' | 'ADMIN'>('CLIENT');
   const [hasActiveDraft, setHasActiveDraft] = useState<boolean>(false);
 
-  // Datos pasados del cotizador a la reserva
   const [quoteForBooking, setQuoteForBooking] = useState<{
     roomSize: RoomSize;
     date: string;
@@ -21,7 +28,7 @@ export default function App() {
   } | null>(null);
 
   const checkActiveDraft = () => {
-    const savedDraft = localStorage.getItem('lumni_active_draft_id');
+    const savedDraft = localStorage.getItem(LOCAL_STORAGE_KEYS.DRAFT_ID);
     setHasActiveDraft(!!savedDraft);
   };
 
@@ -41,45 +48,52 @@ export default function App() {
   };
 
   const handleOpenDraftInWizard = (draftId: number) => {
-    localStorage.setItem('lumni_active_draft_id', String(draftId));
+    localStorage.setItem(LOCAL_STORAGE_KEYS.DRAFT_ID, String(draftId));
     setQuoteForBooking(null);
     setCurrentTab('wizard');
     checkActiveDraft();
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col text-slate-800">
-      <Navbar
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f8fafc' }}>
+      <Header
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
-        currentUserRole={currentUserRole}
-        setCurrentUserRole={setCurrentUserRole}
         hasActiveDraft={hasActiveDraft}
       />
 
-      <main className="flex-1">
+      <Box component="main" sx={{ flex: 1 }}>
         {currentTab === 'quoter' && (
-          <QuoterScreen onProceedToBooking={handleProceedToBooking} />
+          <QuoterPage onProceedToBooking={handleProceedToBooking} />
         )}
 
         {currentTab === 'wizard' && (
-          <BookingWizardScreen
+          <BookingWizardPage
             initialQuoteData={quoteForBooking}
-            onBookingConfirmed={() => {
-              checkActiveDraft();
-            }}
+            onBookingConfirmed={checkActiveDraft}
           />
         )}
 
-        {currentTab === 'admin' && <AdminScreen />}
-      </main>
+        {currentTab === 'admin' && <AdminPage />}
+      </Box>
 
-      {/* Widget Flotante del Asistente Virtual con IA (Parte 2.2) */}
-      <AiChatWidget onOpenDraftInWizard={handleOpenDraftInWizard} />
+      {/* Widget de Asistente de IA (Módulo 2.2) */}
+      <ChatWidget onOpenDraftInWizard={handleOpenDraftInWizard} />
 
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        Lumni Coworking &copy; {new Date().getFullYear()} — Plataforma de Reservas (Prueba Técnica Full Stack)
-      </footer>
-    </div>
+      <Footer />
+    </Box>
+  );
+};
+
+export default function App() {
+  return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="es">
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ThemeProvider>
+    </LocalizationProvider>
   );
 }
