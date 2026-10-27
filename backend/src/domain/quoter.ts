@@ -1,8 +1,10 @@
-export enum RoomSize {
-  SMALL = 'SMALL',
-  MEDIUM = 'MEDIUM',
-  LARGE = 'LARGE',
-}
+export type RoomSize = 'SMALL' | 'MEDIUM' | 'LARGE';
+
+export const RoomSize = {
+  SMALL: 'SMALL',
+  MEDIUM: 'MEDIUM',
+  LARGE: 'LARGE',
+} as const;
 
 export interface QuoteInput {
   roomSize: RoomSize;
