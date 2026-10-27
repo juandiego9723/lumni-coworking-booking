@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import quoteRoutes from './routes/quoteRoutes';
 import bookingRoutes from './routes/bookingRoutes';
 import adminRoutes from './routes/adminRoutes';
+import aiRoutes from './routes/aiRoutes';
 import { startEmailWorker } from './workers/emailWorker';
 
 dotenv.config();
@@ -15,6 +16,7 @@ app.use(express.json());
 app.use('/api/quotes', quoteRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
