@@ -1,5 +1,5 @@
 import { BUSINESS_HOURS } from './timeConstants';
-import { createBogotaDateTime, timeToMinutes } from './dateUtils';
+import { createBogotaDateTime, timeToMinutes, getNowBogota } from './dateUtils';
 
 export interface ScheduleValidationResult {
   isValid: boolean;
@@ -11,6 +11,7 @@ export interface ScheduleValidationResult {
 
 /**
  * Valida las reglas de horario de Lumni Coworking:
+ * - No permite reservas en fechas u horas del pasado
  * - Cerrado los domingos
  * - Duración entre 1 y 10 horas en bloques de 30 minutos
  * - Inicio en bloques de 30 minutos
@@ -19,7 +20,8 @@ export interface ScheduleValidationResult {
 export function validateBookingSchedule(
   dateStr: string,
   startTimeStr: string,
-  durationHours: number
+  durationHours: number,
+  referenceDate?: Date
 ): ScheduleValidationResult {
   const dateObj = createBogotaDateTime(dateStr, '00:00');
   const dayOfWeek = dateObj.getDay();
@@ -77,6 +79,20 @@ export function validateBookingSchedule(
     };
   }
 
+  // Validación de fecha/hora en el pasado
+  const startsAt = createBogotaDateTime(dateStr, startTimeStr);
+  const now = referenceDate ?? getNowBogota();
+
+  if (startsAt.getTime() <= now.getTime()) {
+    return {
+      isValid: false,
+      reason: 'No es posible reservar en una fecha u hora que ya ha transcurrido.',
+      startMinutes,
+      endMinutes,
+      isSaturday,
+    };
+  }
+
   return {
     isValid: true,
     startMinutes,
@@ -84,4 +100,3 @@ export function validateBookingSchedule(
     isSaturday,
   };
 }
-

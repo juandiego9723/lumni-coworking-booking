@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { calculatePricing, validateSchedule, RoomSize } from '../quoter';
 
 describe('Quoter Domain Logic', () => {
+  const refDate = new Date('2026-10-20T00:00:00-05:00');
+
   it('calculates correct pricing for small room without discount on weekday', () => {
     const pricing = calculatePricing(RoomSize.SMALL, 2, false);
     expect(pricing.baseAmount).toBe(80000);
@@ -33,10 +35,17 @@ describe('Quoter Domain Logic', () => {
   });
 
   it('validates schedule rules correctly', () => {
-    const valid = validateSchedule('2026-10-24', '08:00', 2);
+    const valid = validateSchedule('2026-10-24', '08:00', 2, refDate);
     expect(valid.isValid).toBe(true);
 
-    const invalidTime = validateSchedule('2026-10-23', '20:00', 3);
+    const invalidTime = validateSchedule('2026-10-23', '20:00', 3, refDate);
     expect(invalidTime.isValid).toBe(false);
+  });
+
+  it('rejects bookings in the past (e.g. today at 9am when it is 6pm)', () => {
+    const sixPm = new Date('2026-10-27T18:00:00-05:00');
+    const pastNineAm = validateSchedule('2026-10-27', '09:00', 2, sixPm);
+    expect(pastNineAm.isValid).toBe(false);
+    expect(pastNineAm.reason).toBe('No es posible reservar en una fecha u hora que ya ha transcurrido.');
   });
 });

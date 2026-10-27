@@ -5,6 +5,7 @@ import {
   createBogotaDateTime,
   calculateEndDateTime,
   minutesToTime,
+  getNowBogota,
 } from '../domain/time/dateUtils';
 import { BUSINESS_HOURS } from '../domain/time/timeConstants';
 
@@ -108,8 +109,16 @@ async function findNextAvailableSlot(
     select: { startsAt: true, endsAt: true },
   });
 
+  const now = getNowBogota();
+
   for (let currentMin = openingMinutes; currentMin + durationMinutes <= closingMinutes; currentMin += BUSINESS_HOURS.SLOT_INTERVAL_MINUTES) {
     const slotStart = createBogotaDateTime(dateStr, minutesToTime(currentMin));
+
+    // Descartar horarios en el pasado
+    if (slotStart.getTime() <= now.getTime()) {
+      continue;
+    }
+
     const slotEnd = calculateEndDateTime(slotStart, durationHours);
 
     const hasOverlap = existingBookings.some(

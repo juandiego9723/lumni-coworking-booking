@@ -50,7 +50,8 @@ export function calculatePricing(
 export function validateSchedule(
   dateStr: string,
   startTimeStr: string,
-  durationHours: number
+  durationHours: number,
+  referenceDate?: Date
 ): ScheduleValidationResult {
-  return validateBookingSchedule(dateStr, startTimeStr, durationHours);
+  return validateBookingSchedule(dateStr, startTimeStr, durationHours, referenceDate);
 }

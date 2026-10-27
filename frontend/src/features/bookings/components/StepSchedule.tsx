@@ -48,7 +48,7 @@ export const StepSchedule: React.FC<StepScheduleProps> = ({
       {/* Selectores de Fecha y Hora Reutilizables */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
         <DatePickerField value={date} onChange={onDateChange} label="Fecha de Reserva" />
-        <TimeSelect value={startTime} onChange={onStartTimeChange} />
+        <TimeSelect value={startTime} onChange={onStartTimeChange} selectedDate={date} />
         <DurationSelect value={durationHours} onChange={onDurationChange} />
       </Box>
 

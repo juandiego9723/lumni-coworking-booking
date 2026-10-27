@@ -49,7 +49,7 @@ export const QuoterForm: React.FC<QuoterFormProps> = ({
 
           {/* Fila de Hora y Duración */}
           <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-            <TimeSelect value={startTime} onChange={onStartTimeChange} />
+            <TimeSelect value={startTime} onChange={onStartTimeChange} selectedDate={date} />
             <DurationSelect value={durationHours} onChange={onDurationChange} />
           </Box>
 
