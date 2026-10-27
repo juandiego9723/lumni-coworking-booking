@@ -67,3 +67,58 @@ Hola equipo, ya identificamos qué pasó: los recordatorios de reservas en borra
 Ya corregimos el sistema para que los borradores creados al final de la tarde queden programados automáticamente para las 8:00 a.m. del día siguiente sin vencerse durante la noche.
 Mañana a las 8:30 a.m. enviaremos el recordatorio únicamente a los clientes recientes cuya reserva siga en borrador, tenga fecha futura y no hayan recibido ningún mensaje previo.
 Antes de enviarlo les compartiremos la lista filtrada de clientes para su validación, y dejamos alertas activas para detectar de inmediato si algún recordatorio no sale a tiempo.
+
+---
+
+## 5. Bonus Rails (Opcional · hasta 5 puntos)
+
+### Código analizado:
+```ruby
+class Booking < ApplicationRecord
+  has_one :invoice, dependent: :destroy
+  before_save :regenerate_invoice, if: -> { status == 'confirmed' }
+
+  def regenerate_invoice
+    invoice&.destroy
+    build_invoice(total: lines_total, tax: TaxCalculator.for(self))
+  end
+end
+```
+
+### ¿Qué problemas tiene este modelo cuando una reserva confirmada se vuelve a guardar?
+1. **Destrucción y Recreación Innecesaria en CADA guardado (`before_save`):**
+   - El callback se dispara cada vez que se guarda el registro (incluso si solo se actualiza una nota, el teléfono del cliente o un timestamp), destruyendo físicamente la factura anterior y creando una nueva con un nuevo `id` (`PRIMARY KEY`).
+2. **Violación de Integridad y Trazabilidad Contable:**
+   - En sistemas contables y de facturación, **las facturas emitidas nunca deben destruirse**. Borrar una factura genera saltos en los consecutivos de facturación, pérdida de pistas de auditoría y rompe llaves foráneas (`invoice_id`) en pasarelas de pago o asientos contables.
+3. **Pérdida de Idempotencia y Riesgo de Transacciones:**
+   - Si el guardado del `Booking` falla después de `invoice&.destroy`, se puede perder la factura existente o generar inconsistencias graves de estado.
+
+### ¿Cómo corregirlo idiomáticamente en Rails?
+
+```ruby
+class Booking < ApplicationRecord
+  has_one :invoice
+
+  # 1. Solo generar la factura cuando la reserva TRANSICIONA a 'confirmed', no en cada guardado
+  after_commit :generate_invoice_on_confirmation, on: :update, if: :became_confirmed?
+
+  private
+
+  def became_confirmed?
+    saved_change_to_status?(to: 'confirmed')
+  end
+
+  def generate_invoice_on_confirmation
+    # 2. Idempotencia: Si ya existe factura para esta reserva, no destruirla ni duplicarla
+    return if invoice.present?
+
+    create_invoice!(
+      total: lines_total,
+      tax: TaxCalculator.for(self)
+    )
+  end
+end
+```
+
+*(En una arquitectura de producción aún más limpia, esta lógica no reside en un callback del modelo sino en un Servicio de Dominio explícito, como `ConfirmBookingService.call(booking)`, garantizando trazabilidad y facilidad de pruebas unitarias).*
+
