@@ -1,53 +1,76 @@
-import { PrismaClient, RoomSize } from '@prisma/client';
+import { RoomSize } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { calculatePricing, validateSchedule } from '../domain/quoter';
+import {
+  createBogotaDateTime,
+  calculateEndDateTime,
+  minutesToTime,
+} from '../domain/time/dateUtils';
+import { BUSINESS_HOURS } from '../domain/time/timeConstants';
 
-const prisma = new PrismaClient();
+export interface ProcessQuoteInput {
+  roomSize?: RoomSize;
+  roomId?: number;
+  date: string;
+  startTime: string;
+  durationHours: number;
+}
 
-export async function processQuote(data: { roomSize?: RoomSize; roomId?: number; date: string; startTime: string; durationHours: number }) {
+export interface QuoteServiceResult {
+  roomId?: number;
+  roomName?: string;
+  isAvailable: boolean;
+  reason?: string;
+  suggestedNextSlot?: string | null;
+  baseAmount?: number;
+  discountAmount?: number;
+  surchargeAmount?: number;
+  totalAmount?: number;
+}
+
+/**
+ * Procesa la cotización de una sala y verifica su disponibilidad en tiempo real.
+ */
+export async function processQuote(data: ProcessQuoteInput): Promise<QuoteServiceResult> {
   // 1. Validar reglas estructurales de horario
   const validation = validateSchedule(data.date, data.startTime, data.durationHours);
   if (!validation.isValid) {
     return { isAvailable: false, reason: validation.reason };
   }
 
-  // 2. Buscar la sala por tamaño o ID
-  let room = null;
-  if (data.roomId) {
-    room = await prisma.room.findUnique({ where: { id: data.roomId } });
-  } else if (data.roomSize) {
-    room = await prisma.room.findUnique({ where: { size: data.roomSize } });
-  }
+  // 2. Buscar la sala por ID o por tamaño
+  const room = data.roomId
+    ? await prisma.room.findUnique({ where: { id: data.roomId } })
+    : data.roomSize
+    ? await prisma.room.findUnique({ where: { size: data.roomSize } })
+    : null;
 
   if (!room) {
     return { isAvailable: false, reason: 'La sala seleccionada no existe.' };
   }
 
-  // 3. Calcular fechas de inicio y fin (Timezone Colombia UTC-5)
-  const startsAt = new Date(`${data.date}T${data.startTime}:00-05:00`);
-  const endsAt = new Date(startsAt.getTime() + data.durationHours * 3600 * 1000);
+  // 3. Calcular rango en hora de Colombia (UTC-5)
+  const startsAt = createBogotaDateTime(data.date, data.startTime);
+  const endsAt = calculateEndDateTime(startsAt, data.durationHours);
 
-  // 4. Verificar disponibilidad (cruces con reservas CONFIRMED)
+  // 4. Verificar disponibilidad (solapamiento con reservas CONFIRMED)
   const overlappingBooking = await prisma.booking.findFirst({
     where: {
       roomId: room.id,
       status: 'CONFIRMED',
-      AND: [
-        { startsAt: { lt: endsAt } },
-        { endsAt: { gt: startsAt } }
-      ]
-    }
+      AND: [{ startsAt: { lt: endsAt } }, { endsAt: { gt: startsAt } }],
+    },
   });
 
-  const pricing = calculatePricing(room.size, data.durationHours, validation.isSaturday!);
+  const pricing = calculatePricing(room.size, data.durationHours, validation.isSaturday);
 
   if (overlappingBooking) {
-    // Buscar siguiente horario disponible el mismo día
     const suggestedStartTime = await findNextAvailableSlot(room.id, data.date, data.durationHours);
     return {
       isAvailable: false,
       reason: `La sala ${room.name} ya se encuentra reservada en el horario solicitado.`,
       suggestedNextSlot: suggestedStartTime,
-      ...pricing
+      ...pricing,
     };
   }
 
@@ -55,37 +78,46 @@ export async function processQuote(data: { roomSize?: RoomSize; roomId?: number;
     roomId: room.id,
     roomName: room.name,
     isAvailable: true,
-    ...pricing
+    ...pricing,
   };
 }
 
-async function findNextAvailableSlot(roomId: number, dateStr: string, durationHours: number): Promise<string | null> {
-  // Horario operativo de 07:00 (420 min) a 21:00 (1260 min) en bloques de 30 min
-  const openingMinutes = 7 * 60;
-  const closingMinutes = 21 * 60;
+/**
+ * Busca el siguiente bloque disponible en el mismo día sin problema N+1 de queries.
+ */
+async function findNextAvailableSlot(
+  roomId: number,
+  dateStr: string,
+  durationHours: number
+): Promise<string | null> {
+  const openingMinutes = BUSINESS_HOURS.OPEN_HOUR * 60;
+  const closingMinutes = BUSINESS_HOURS.CLOSE_HOUR * 60;
   const durationMinutes = durationHours * 60;
 
-  for (let currentMin = openingMinutes; currentMin + durationMinutes <= closingMinutes; currentMin += 30) {
-    const hours = Math.floor(currentMin / 60).toString().padStart(2, '0');
-    const mins = (currentMin % 60).toString().padStart(2, '0');
-    const startTimeStr = `${hours}:${mins}`;
+  // Consulta única de todas las reservas confirmadas del día
+  const dayStart = createBogotaDateTime(dateStr, '00:00');
+  const dayEnd = createBogotaDateTime(dateStr, '23:59');
 
-    const startsAt = new Date(`${dateStr}T${startTimeStr}:00-05:00`);
-    const endsAt = new Date(startsAt.getTime() + durationMinutes * 1000);
+  const existingBookings = await prisma.booking.findMany({
+    where: {
+      roomId,
+      status: 'CONFIRMED',
+      startsAt: { lte: dayEnd },
+      endsAt: { gte: dayStart },
+    },
+    select: { startsAt: true, endsAt: true },
+  });
 
-    const overlap = await prisma.booking.findFirst({
-      where: {
-        roomId,
-        status: 'CONFIRMED',
-        AND: [
-          { startsAt: { lt: endsAt } },
-          { endsAt: { gt: startsAt } }
-        ]
-      }
-    });
+  for (let currentMin = openingMinutes; currentMin + durationMinutes <= closingMinutes; currentMin += BUSINESS_HOURS.SLOT_INTERVAL_MINUTES) {
+    const slotStart = createBogotaDateTime(dateStr, minutesToTime(currentMin));
+    const slotEnd = calculateEndDateTime(slotStart, durationHours);
 
-    if (!overlap) {
-      return startTimeStr;
+    const hasOverlap = existingBookings.some(
+      (b) => b.startsAt < slotEnd && b.endsAt > slotStart
+    );
+
+    if (!hasOverlap) {
+      return minutesToTime(currentMin);
     }
   }
 

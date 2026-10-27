@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient, Role, User } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Role, User } from '@prisma/client';
+import prisma from '../lib/prisma';
 
 export interface AuthenticatedRequest extends Request {
   user?: User;
@@ -35,8 +34,9 @@ export async function authenticate(req: AuthenticatedRequest, res: Response, nex
 
     req.user = user;
     return next();
-  } catch (error: any) {
-    return res.status(500).json({ error: 'Error durante la autenticación', details: error.message });
+  } catch (error: unknown) {
+    const details = error instanceof Error ? error.message : 'Error desconocido';
+    return res.status(500).json({ error: 'Error durante la autenticación', details });
   }
 }
 
@@ -58,4 +58,3 @@ export function requireRole(role: Role) {
     return next();
   };
 }
-

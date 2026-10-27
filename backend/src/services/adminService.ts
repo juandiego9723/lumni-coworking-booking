@@ -1,7 +1,6 @@
-import { PrismaClient, BookingStatus, EmailStatus } from '@prisma/client';
+import { BookingStatus, EmailStatus, Prisma } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { canTransition } from '../domain/bookingStateMachine';
-
-const prisma = new PrismaClient();
 
 export interface AdminBookingFilterParams {
   page?: number;
@@ -16,7 +15,7 @@ export async function listAdminBookings(params: AdminBookingFilterParams) {
   const limit = Math.min(100, Math.max(1, params.limit || 10));
   const skip = (page - 1) * limit;
 
-  const where: any = {};
+  const where: Prisma.BookingWhereInput = {};
 
   if (params.status) {
     where.status = params.status;
@@ -127,7 +126,7 @@ export async function cancelAdminBooking(bookingId: number, cancellationReason: 
 }
 
 export async function listAdminEmails(status?: EmailStatus) {
-  const where: any = {};
+  const where: Prisma.EmailOutboxWhereInput = {};
   if (status) {
     where.status = status;
   }
@@ -148,4 +147,3 @@ export async function listAdminEmails(status?: EmailStatus) {
     },
   });
 }
-

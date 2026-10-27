@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { handleChatMessage, getSessionHistory } from '../services/ai/aiService';
+import { handleRouteError } from '../utils/httpErrors';
 
 const router = Router();
 
@@ -20,9 +21,8 @@ router.post('/chat', async (req: Request, res: Response) => {
 
     const result = await handleChatMessage(parsed.data);
     return res.json(result);
-  } catch (error: any) {
-    console.error('Error en /api/ai/chat:', error);
-    return res.status(500).json({ error: error.message || 'Error al procesar mensaje con IA' });
+  } catch (error: unknown) {
+    return handleRouteError(res, error, 'Error al procesar mensaje con IA');
   }
 });
 
@@ -34,10 +34,9 @@ router.get('/chat/:sessionId', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Sesión de chat no encontrada' });
     }
     return res.json(history);
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
   }
 });
 
 export default router;
-

@@ -1,6 +1,5 @@
-import { PrismaClient, EmailStatus } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { EmailStatus } from '@prisma/client';
+import prisma from '../lib/prisma';
 
 export const MAX_EMAIL_ATTEMPTS = 5;
 export const BASE_BACKOFF_MS = 5000; // 5 segundos base
@@ -29,12 +28,10 @@ export const capturedEmailsLog: CapturedEmail[] = [];
  * Simula el envío de correo. Puede inyectarse un transportador personalizado o simular fallos.
  */
 export async function sendEmailTransport(recipient: string, subject: string, body: string): Promise<boolean> {
-  // Simulación: Si el correo contiene 'fail' en su dirección, simula un error de red del proveedor
   if (recipient.includes('fail@')) {
     throw new Error('Simulated SMTP connection failure: Connection timed out');
   }
 
-  // Registro en consola estructurado
   console.log(`\n================== [CORREO SALIENTE] ==================`);
   console.log(`Para: ${recipient}`);
   console.log(`Asunto: ${subject}`);
@@ -47,10 +44,11 @@ export async function sendEmailTransport(recipient: string, subject: string, bod
 /**
  * Procesa un lote de correos pendientes en EmailOutbox con soporte de reintentos exponenciales.
  */
-export async function processPendingEmails(limit = 10): Promise<{ processed: number; succeeded: number; failed: number }> {
+export async function processPendingEmails(
+  limit = 10
+): Promise<{ processed: number; succeeded: number; failed: number }> {
   const now = new Date();
 
-  // Buscar correos PENDING listos para envío según su nextRetryAt
   const pendingEmails = await prisma.emailOutbox.findMany({
     where: {
       status: EmailStatus.PENDING,
@@ -69,7 +67,6 @@ export async function processPendingEmails(limit = 10): Promise<{ processed: num
     try {
       await sendEmailTransport(item.recipientEmail, item.subject, item.body);
 
-      // Éxito: Marcar como SENT
       await prisma.emailOutbox.update({
         where: { id: item.id },
         data: {
@@ -90,12 +87,11 @@ export async function processPendingEmails(limit = 10): Promise<{ processed: num
       });
 
       succeeded++;
-    } catch (error: any) {
+    } catch (error: unknown) {
       failed++;
-      const errorMessage = error?.message || 'Error desconocido al enviar correo';
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido al enviar correo';
 
       if (currentAttempt >= MAX_EMAIL_ATTEMPTS) {
-        // Superó el límite de reintentos: pasa a FAILED y será visible en el dashboard del admin
         await prisma.emailOutbox.update({
           where: { id: item.id },
           data: {
@@ -104,9 +100,10 @@ export async function processPendingEmails(limit = 10): Promise<{ processed: num
             lastError: `Superó el límite de ${MAX_EMAIL_ATTEMPTS} reintentos. Último error: ${errorMessage}`,
           },
         });
-        console.error(`[EMAIL WORKER] Correo ID ${item.id} (Booking #${item.bookingId}) falló definitivamente tras ${MAX_EMAIL_ATTEMPTS} intentos.`);
+        console.error(
+          `[EMAIL WORKER] Correo ID ${item.id} (Booking #${item.bookingId}) falló definitivamente tras ${MAX_EMAIL_ATTEMPTS} intentos.`
+        );
       } else {
-        // Programar siguiente reintento con backoff exponencial
         const backoffMs = calculateBackoffMs(currentAttempt);
         const nextRetryDate = new Date(Date.now() + backoffMs);
 
@@ -118,7 +115,9 @@ export async function processPendingEmails(limit = 10): Promise<{ processed: num
             lastError: `Intento ${currentAttempt} fallido: ${errorMessage}. Reintentando en ${backoffMs / 1000}s`,
           },
         });
-        console.warn(`[EMAIL WORKER] Correo ID ${item.id} falló en intento ${currentAttempt}. Siguiente reintento programado para: ${nextRetryDate.toISOString()}`);
+        console.warn(
+          `[EMAIL WORKER] Correo ID ${item.id} falló en intento ${currentAttempt}. Siguiente reintento: ${nextRetryDate.toISOString()}`
+        );
       }
     }
   }
@@ -139,7 +138,7 @@ export function startEmailWorker(pollIntervalMs = 5000): void {
   workerInterval = setInterval(async () => {
     try {
       await processPendingEmails();
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[EMAIL WORKER] Error no controlado en ciclo de polling:', err);
     }
   }, pollIntervalMs);
@@ -155,4 +154,3 @@ export function stopEmailWorker(): void {
     console.log('[EMAIL WORKER] Servicio detenido.');
   }
 }
-

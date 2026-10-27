@@ -8,7 +8,7 @@ import {
   cancelAdminBooking,
   listAdminEmails,
 } from '../services/adminService';
-import { processPendingEmails } from '../workers/emailWorker';
+import { handleRouteError } from '../utils/httpErrors';
 
 const router = Router();
 
@@ -34,9 +34,8 @@ router.get('/bookings', async (req: AuthenticatedRequest, res: Response) => {
 
     const result = await listAdminBookings(parsed.data);
     return res.json(result);
-  } catch (error: any) {
-    console.error('Error al listar reservas admin:', error);
-    return res.status(500).json({ error: error.message || 'Error interno del servidor' });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
   }
 });
 
@@ -50,9 +49,8 @@ router.get('/bookings/:id', async (req: AuthenticatedRequest, res: Response) => 
 
     const booking = await getAdminBookingById(bookingId);
     return res.json(booking);
-  } catch (error: any) {
-    const status = error.message.includes('no encontrada') ? 404 : 500;
-    return res.status(status).json({ error: error.message });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
   }
 });
 
@@ -78,13 +76,8 @@ router.post('/bookings/:id/cancel', async (req: AuthenticatedRequest, res: Respo
       message: 'Reserva cancelada exitosamente.',
       booking: result,
     });
-  } catch (error: any) {
-    const status = error.message.includes('no encontrada')
-      ? 404
-      : error.message.includes('obligatorio') || error.message.includes('No se puede cancelar')
-      ? 400
-      : 500;
-    return res.status(status).json({ error: error.message });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
   }
 });
 
@@ -94,20 +87,9 @@ router.get('/emails', async (req: AuthenticatedRequest, res: Response) => {
     const status = req.query.status as EmailStatus | undefined;
     const emails = await listAdminEmails(status);
     return res.json(emails);
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-// POST /api/admin/emails/process-now - Disparador manual para procesar reintentos en segundo plano bajo demanda
-router.post('/emails/process-now', async (_req: AuthenticatedRequest, res: Response) => {
-  try {
-    const summary = await processPendingEmails();
-    return res.json({ message: 'Procesamiento de correos ejecutado.', summary });
-  } catch (error: any) {
-    return res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
   }
 });
 
 export default router;
-
