@@ -1,0 +1,111 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  ADMIN
+}
+
+enum RoomSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+enum BookingStatus {
+  DRAFT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum EmailStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String
+  role      Role      @default(CLIENT)
+  bookings  Booking[]
+  createdAt DateTime  @default(now())
+}
+
+model Room {
+  id         Int       @id @default(autoincrement())
+  name       String
+  size       RoomSize  @unique
+  hourlyRate Int
+  bookings   Booking[]
+}
+
+model Booking {
+  id                 Int           @id @default(autoincrement())
+  userId             Int
+  roomId             Int
+  customerName       String
+  customerEmail      String
+  startsAt           DateTime      @db.Timestamptz(6)
+  endsAt             DateTime      @db.Timestamptz(6)
+  durationHours      Float
+  hasProjector       Boolean       @default(false)
+  hasCoffee          Boolean       @default(false)
+  currentStep        Int           @default(1)
+  baseAmount         Int
+  discountAmount     Int
+  surchargeAmount    Int
+  servicesAmount     Int           @default(0)
+  totalAmount        Int
+  status             BookingStatus @default(DRAFT)
+  cancellationReason String?
+  createdAt          DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime      @updatedAt @db.Timestamptz(6)
+
+  user        User         @relation(fields: [userId], references: [id])
+  room        Room         @relation(fields: [roomId], references: [id])
+  emailOutbox EmailOutbox?
+}
+
+model EmailOutbox {
+  id             Int         @id @default(autoincrement())
+  bookingId      Int         @unique
+  recipientEmail String
+  subject        String
+  body           String
+  status         EmailStatus @default(PENDING)
+  attempts       Int         @default(0)
+  nextRetryAt    DateTime    @default(now()) @db.Timestamptz(6)
+  sentAt         DateTime?   @db.Timestamptz(6)
+  lastError      String?
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @db.Timestamptz(6)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model ChatSession {
+  id             String        @id @default(uuid())
+  userId         Int
+  draftBookingId Int?
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+  messages       ChatMessage[]
+}
+
+model ChatMessage {
+  id        Int         @id @default(autoincrement())
+  sessionId String
+  role      String
+  content   String
+  createdAt DateTime    @default(now()) @db.Timestamptz(6)
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
