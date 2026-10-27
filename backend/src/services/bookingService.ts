@@ -34,6 +34,17 @@ export interface Step3Data {
 export type UpdateBookingStepInput = Step1Data & Step2Data & Step3Data;
 
 /**
+ * Obtiene una reserva por su ID, arrojando error de dominio si no existe.
+ */
+export async function getBookingById(bookingId: number): Promise<Booking> {
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+  if (!booking) {
+    throw new Error('Borrador no encontrado');
+  }
+  return booking;
+}
+
+/**
  * Crea una reserva en estado DRAFT validando previamente las reglas horarias.
  */
 export async function createDraftBooking(userId: number, data: CreateDraftBookingInput): Promise<Booking> {

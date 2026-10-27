@@ -1,35 +1,23 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
+import { quoteRequestSchema } from '../schemas/quoteSchemas';
+import { validateRequest } from '../middlewares/validationMiddleware';
 import { processQuote } from '../services/quoteService';
-import { RoomSize } from '@prisma/client';
 import { handleRouteError } from '../utils/httpErrors';
 
 const router = Router();
 
-const quoteSchema = z
-  .object({
-    roomSize: z.nativeEnum(RoomSize).optional(),
-    roomId: z.number().int().positive().optional(),
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato de fecha inválido (YYYY-MM-DD)'),
-    startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Formato de hora inválido (HH:mm)'),
-    durationHours: z.number().min(1).max(10),
-  })
-  .refine((data) => data.roomSize || data.roomId, {
-    message: 'Debe proporcionar roomSize o roomId',
-  });
-
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const validation = quoteSchema.safeParse(req.body);
-    if (!validation.success) {
-      return res.status(400).json({ error: 'Datos de entrada inválidos', details: validation.error.format() });
+// POST /api/quotes - Cotizar disponibilidad y tarifas
+router.post(
+  '/',
+  validateRequest({ body: quoteRequestSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await processQuote(req.body);
+      return res.status(200).json(result);
+    } catch (error: unknown) {
+      return handleRouteError(res, error, 'Error interno al procesar la cotización');
     }
-
-    const result = await processQuote(validation.data);
-    return res.status(200).json(result);
-  } catch (error: unknown) {
-    return handleRouteError(res, error, 'Error interno al procesar la cotización');
   }
-});
+);
 
 export default router;

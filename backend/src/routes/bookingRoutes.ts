@@ -1,97 +1,81 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
-import prisma from '../lib/prisma';
-import { createDraftBooking, updateBookingStep, confirmBooking } from '../services/bookingService';
+import {
+  createDraftSchema,
+  patchBookingStepSchema,
+  bookingIdParamSchema,
+} from '../schemas/bookingSchemas';
+import { validateRequest } from '../middlewares/validationMiddleware';
+import {
+  createDraftBooking,
+  updateBookingStep,
+  confirmBooking,
+  getBookingById,
+} from '../services/bookingService';
 import { handleRouteError } from '../utils/httpErrors';
 
 const router = Router();
 
-const draftSchema = z.object({
-  userId: z.number().int().positive(),
-  roomId: z.number().int().positive(),
-  date: z.string(),
-  startTime: z.string(),
-  durationHours: z.number().min(1).max(10),
-  customerName: z.string().min(2),
-  customerEmail: z.string().email(),
-});
-
-const patchStepSchema = z.object({
-  step: z.number().int().min(1).max(3),
-  data: z.object({
-    customerName: z.string().min(2).optional(),
-    customerEmail: z.string().email().optional(),
-    roomId: z.number().int().positive().optional(),
-    date: z.string().optional(),
-    startTime: z.string().optional(),
-    durationHours: z.number().min(1).max(10).optional(),
-    hasProjector: z.boolean().optional(),
-    hasCoffee: z.boolean().optional(),
-  }),
-});
-
-router.post('/draft', async (req: Request, res: Response) => {
-  try {
-    const parsed = draftSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.format() });
+// POST /api/bookings/draft - Crear borrador inicial
+router.post(
+  '/draft',
+  validateRequest({ body: createDraftSchema }, 'Datos inválidos'),
+  async (req: Request, res: Response) => {
+    try {
+      const draft = await createDraftBooking(req.body.userId, req.body);
+      return res.status(201).json(draft);
+    } catch (error: unknown) {
+      return handleRouteError(res, error);
     }
-
-    const draft = await createDraftBooking(parsed.data.userId, parsed.data);
-    return res.status(201).json(draft);
-  } catch (error: unknown) {
-    return handleRouteError(res, error);
   }
-});
+);
 
-router.get('/:id', async (req: Request, res: Response) => {
-  try {
-    const bookingId = parseInt(req.params.id, 10);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'ID de reserva inválido' });
+// GET /api/bookings/:id - Obtener detalle de borrador
+router.get(
+  '/:id',
+  validateRequest({ params: bookingIdParamSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const booking = await getBookingById(Number(req.params.id));
+      return res.json(booking);
+    } catch (error: unknown) {
+      return handleRouteError(res, error);
     }
-
-    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-    if (!booking) {
-      return res.status(404).json({ error: 'Borrador no encontrado' });
-    }
-    return res.json(booking);
-  } catch (error: unknown) {
-    return handleRouteError(res, error);
   }
-});
+);
 
-router.patch('/:id/step', async (req: Request, res: Response) => {
-  try {
-    const bookingId = parseInt(req.params.id, 10);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'ID de reserva inválido' });
+// PATCH /api/bookings/:id/step - Avanzar y actualizar pasos del wizard
+router.patch(
+  '/:id/step',
+  validateRequest(
+    { params: bookingIdParamSchema, body: patchBookingStepSchema },
+    'Datos inválidos'
+  ),
+  async (req: Request, res: Response) => {
+    try {
+      const updated = await updateBookingStep(
+        Number(req.params.id),
+        req.body.step,
+        req.body.data
+      );
+      return res.json(updated);
+    } catch (error: unknown) {
+      return handleRouteError(res, error);
     }
-
-    const parsed = patchStepSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ error: 'Datos inválidos', details: parsed.error.format() });
-    }
-
-    const updated = await updateBookingStep(bookingId, parsed.data.step, parsed.data.data);
-    return res.json(updated);
-  } catch (error: unknown) {
-    return handleRouteError(res, error);
   }
-});
+);
 
-router.post('/:id/confirm', async (req: Request, res: Response) => {
-  try {
-    const bookingId = parseInt(req.params.id, 10);
-    if (isNaN(bookingId)) {
-      return res.status(400).json({ error: 'ID de reserva inválido' });
+// POST /api/bookings/:id/confirm - Confirmar reserva
+router.post(
+  '/:id/confirm',
+  validateRequest({ params: bookingIdParamSchema }),
+  async (req: Request, res: Response) => {
+    try {
+      const result = await confirmBooking(Number(req.params.id));
+      return res.json(result);
+    } catch (error: unknown) {
+      return handleRouteError(res, error);
     }
-
-    const result = await confirmBooking(bookingId);
-    return res.json(result);
-  } catch (error: unknown) {
-    return handleRouteError(res, error);
   }
-});
+);
 
 export default router;
