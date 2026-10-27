@@ -1,4 +1,8 @@
-import { RoomSize } from '@prisma/client';
+export enum RoomSize {
+  SMALL = 'SMALL',
+  MEDIUM = 'MEDIUM',
+  LARGE = 'LARGE',
+}
 
 export interface QuoteInput {
   roomSize: RoomSize;

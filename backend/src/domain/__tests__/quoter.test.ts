@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculatePricing, validateSchedule } from '../quoter';
-import { RoomSize } from '@prisma/client';
+import { calculatePricing, validateSchedule, RoomSize } from '../quoter';
 
 describe('Quoter Domain Logic', () => {
   it('calculates correct pricing for small room without discount on weekday', () => {
