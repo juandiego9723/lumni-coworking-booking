@@ -14,6 +14,7 @@ import {
   cancelAdminBooking,
   listAdminEmails,
 } from '../services/adminService';
+import { processPendingEmails } from '../workers/emailWorker';
 import { handleRouteError } from '../utils/httpErrors';
 
 const router = Router();
@@ -84,5 +85,18 @@ router.get(
     }
   }
 );
+
+// POST /api/admin/emails/process-now - Disparador manual para procesar reintentos en segundo plano bajo demanda
+router.post('/emails/process-now', async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const summary = await processPendingEmails();
+    return res.json({
+      message: 'Procesamiento de correos ejecutado.',
+      summary,
+    });
+  } catch (error: unknown) {
+    return handleRouteError(res, error);
+  }
+});
 
 export default router;

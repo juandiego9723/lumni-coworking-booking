@@ -9,10 +9,11 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
 import Chip from '@mui/material/Chip';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import { Button, StatusBadge } from '../../../components/common';
 import { Booking } from '../../../types';
 import { formatCOP } from '../../../utils/currency';
-import { formatDate } from '../../../utils/dates';
+import { formatBookingDate, formatTimeRange, formatDateTime } from '../../../utils/dates';
 
 interface BookingsTableProps {
   bookings: Booking[];
@@ -31,13 +32,14 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
 }) => {
   return (
     <TableContainer component={Card} variant="outlined" sx={{ borderRadius: 3 }}>
-      <Table sx={{ minWidth: 700 }} size="small">
+      <Table sx={{ minWidth: 850 }} size="small">
         <TableHead sx={{ bgcolor: '#f8fafc' }}>
           <TableRow>
             <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Cliente</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Sala</TableCell>
-            <TableCell sx={{ fontWeight: 700 }}>Fecha / Horas</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Fecha y Horario</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Creación / Cancelación</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Total</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Correo Asíncrono</TableCell>
@@ -47,7 +49,7 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
         <TableBody>
           {bookings.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+              <TableCell colSpan={9} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                 No se encontraron reservas con los filtros seleccionados.
               </TableCell>
             </TableRow>
@@ -61,8 +63,72 @@ export const BookingsTable: React.FC<BookingsTableProps> = ({
                 </TableCell>
                 <TableCell>{b.room?.name || `Sala ${b.roomId}`}</TableCell>
                 <TableCell>
-                  <Typography variant="body2">{formatDate(b.startsAt)}</Typography>
-                  <Typography variant="caption" color="text.secondary">{b.durationHours} hora(s)</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Typography variant="body2" fontWeight={600} color="text.primary">
+                      {formatBookingDate(b.startsAt)}
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                      <Chip
+                        size="small"
+                        icon={<AccessTimeIcon sx={{ fontSize: '0.85rem !important' }} />}
+                        label={formatTimeRange(b.startsAt, b.endsAt, b.durationHours)}
+                        variant="outlined"
+                        sx={{
+                          height: 22,
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          borderColor: '#cbd5e1',
+                          bgcolor: '#f1f5f9',
+                          color: '#1e293b',
+                          '& .MuiChip-icon': { ml: '4px', mr: '-2px' },
+                        }}
+                      />
+                      <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                        ({b.durationHours} hrs)
+                      </Typography>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontSize: '0.68rem' }}>
+                        Creada:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontSize: '0.78rem', fontWeight: 600 }}>
+                        {formatDateTime(b.createdAt)}
+                      </Typography>
+                    </Box>
+                    {b.status === 'CANCELLED' ? (
+                      <Box sx={{ bgcolor: '#fef2f2', p: 0.5, borderRadius: 1, border: '1px solid #fecaca', mt: 0.25 }}>
+                        <Typography variant="caption" color="error.main" sx={{ display: 'block', fontSize: '0.68rem', fontWeight: 700 }}>
+                          Cancelada: {formatDateTime(b.updatedAt)}
+                        </Typography>
+                        {b.cancellationReason && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              display: 'block',
+                              fontSize: '0.68rem',
+                              fontStyle: 'italic',
+                              maxWidth: 160,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={b.cancellationReason}
+                          >
+                            &quot;{b.cancellationReason}&quot;
+                          </Typography>
+                        )}
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>
+                        Sin cancelar
+                      </Typography>
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>{formatCOP(b.totalAmount)}</TableCell>
                 <TableCell>

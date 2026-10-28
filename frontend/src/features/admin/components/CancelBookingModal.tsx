@@ -1,9 +1,11 @@
 import React from 'react';
+import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import Alert from '@mui/material/Alert';
 import { Modal, Button } from '../../../components/common';
 import { Booking } from '../../../types';
+import { formatBookingDate, formatTimeRange, formatDateTime } from '../../../utils/dates';
 
 interface CancelBookingModalProps {
   booking: Booking | null;
@@ -48,6 +50,21 @@ export const CancelBookingModal: React.FC<CancelBookingModalProps> = ({
         </>
       }
     >
+      <Box sx={{ bgcolor: '#f8fafc', p: 2, borderRadius: 2, mb: 2, border: '1px solid #e2e8f0' }}>
+        <Typography variant="caption" color="text.secondary" display="block">
+          Detalle de la reserva:
+        </Typography>
+        <Typography variant="body2" fontWeight={600} color="text.primary">
+          {booking.customerName} &bull; {booking.room?.name || `Sala ${booking.roomId}`}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+          📅 {formatBookingDate(booking.startsAt)} &bull; 🕒 {formatTimeRange(booking.startsAt, booking.endsAt, booking.durationHours)} ({booking.durationHours} hrs)
+        </Typography>
+        <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25 }}>
+          📝 Registrada el: {formatDateTime(booking.createdAt)}
+        </Typography>
+      </Box>
+
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Por especificación de negocio, <strong>es obligatorio indicar el motivo de la cancelación</strong> (mínimo 5 caracteres).
       </Typography>
