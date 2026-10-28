@@ -17,7 +17,7 @@ export const DurationSelect: React.FC<DurationSelectProps> = ({
   fullWidth = true,
   size = 'medium',
 }) => {
-  // Entre 1 y 10 horas en bloques de 0.5h
+  // Entre 1 y 10 horas en bloques de 0.5h según la especificación oficial
   const durationOptions = Array.from({ length: 19 }).map((_, idx) => {
     const hours = 1 + idx * 0.5;
     let text = `${hours} hora${hours > 1 ? 's' : ''}`;
@@ -48,4 +48,3 @@ export const DurationSelect: React.FC<DurationSelectProps> = ({
 };
 
 export default DurationSelect;
-

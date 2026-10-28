@@ -31,15 +31,15 @@ export interface QuoteServiceResult {
 
 /**
  * Procesa la cotización de una sala y verifica su disponibilidad en tiempo real.
+ * Según la especificación oficial, la respuesta SIEMPRE incluye el desglose de precios
+ * (baseAmount, discountAmount, surchargeAmount, totalAmount), indicando si es posible
+ * reservar o el motivo de no disponibilidad con una sugerencia de horario alternativo.
  */
-export async function processQuote(data: ProcessQuoteInput): Promise<QuoteServiceResult> {
-  // 1. Validar reglas estructurales de horario
-  const validation = validateSchedule(data.date, data.startTime, data.durationHours);
-  if (!validation.isValid) {
-    return { isAvailable: false, reason: validation.reason };
-  }
-
-  // 2. Buscar la sala por ID o por tamaño
+export async function processQuote(
+  data: ProcessQuoteInput,
+  referenceDate?: Date
+): Promise<QuoteServiceResult> {
+  // 1. Buscar la sala por ID o por tamaño
   const room = data.roomId
     ? await prisma.room.findUnique({ where: { id: data.roomId } })
     : data.roomSize
@@ -50,11 +50,31 @@ export async function processQuote(data: ProcessQuoteInput): Promise<QuoteServic
     return { isAvailable: false, reason: 'La sala seleccionada no existe.' };
   }
 
-  // 3. Calcular rango en hora de Colombia (UTC-5)
+  // 2. Validar reglas estructurales de horario y calcular el desglose oficial de precios
+  const validation = validateSchedule(data.date, data.startTime, data.durationHours, referenceDate);
+  const pricing = calculatePricing(room.size, data.durationHours, validation.isSaturday);
+
+  // 3. Si el horario solicitado no es válido (fechas/horas pasadas, domingo cerrado o fuera de 07:00 a 21:00)
+  if (!validation.isValid) {
+    const isSunday = validation.reason?.includes('domingo');
+    const suggestedStartTime = isSunday
+      ? null
+      : await findNextAvailableSlot(room.id, data.date, data.durationHours, referenceDate);
+
+    return {
+      roomId: room.id,
+      roomName: room.name,
+      isAvailable: false,
+      reason: validation.reason,
+      suggestedNextSlot: suggestedStartTime,
+      ...pricing,
+    };
+  }
+
+  // 4. Verificar disponibilidad (solapamiento con reservas CONFIRMED)
   const startsAt = createBogotaDateTime(data.date, data.startTime);
   const endsAt = calculateEndDateTime(startsAt, data.durationHours);
 
-  // 4. Verificar disponibilidad (solapamiento con reservas CONFIRMED)
   const overlappingBooking = await prisma.booking.findFirst({
     where: {
       roomId: room.id,
@@ -63,11 +83,16 @@ export async function processQuote(data: ProcessQuoteInput): Promise<QuoteServic
     },
   });
 
-  const pricing = calculatePricing(room.size, data.durationHours, validation.isSaturday);
-
   if (overlappingBooking) {
-    const suggestedStartTime = await findNextAvailableSlot(room.id, data.date, data.durationHours);
+    const suggestedStartTime = await findNextAvailableSlot(
+      room.id,
+      data.date,
+      data.durationHours,
+      referenceDate
+    );
     return {
+      roomId: room.id,
+      roomName: room.name,
       isAvailable: false,
       reason: `La sala ${room.name} ya se encuentra reservada en el horario solicitado.`,
       suggestedNextSlot: suggestedStartTime,
@@ -84,16 +109,19 @@ export async function processQuote(data: ProcessQuoteInput): Promise<QuoteServic
 }
 
 /**
- * Busca el siguiente bloque disponible en el mismo día sin problema N+1 de queries.
+ * Busca el siguiente bloque disponible en el mismo día entre 07:00 y 21:00,
+ * descartando horas que ya hayan transcurrido en el día de hoy.
  */
 async function findNextAvailableSlot(
   roomId: number,
   dateStr: string,
-  durationHours: number
+  durationHours: number,
+  referenceDate?: Date
 ): Promise<string | null> {
   const openingMinutes = BUSINESS_HOURS.OPEN_HOUR * 60;
   const closingMinutes = BUSINESS_HOURS.CLOSE_HOUR * 60;
   const durationMinutes = durationHours * 60;
+  const now = referenceDate ?? getNowBogota();
 
   // Consulta única de todas las reservas confirmadas del día
   const dayStart = createBogotaDateTime(dateStr, '00:00');
@@ -109,12 +137,10 @@ async function findNextAvailableSlot(
     select: { startsAt: true, endsAt: true },
   });
 
-  const now = getNowBogota();
-
   for (let currentMin = openingMinutes; currentMin + durationMinutes <= closingMinutes; currentMin += BUSINESS_HOURS.SLOT_INTERVAL_MINUTES) {
     const slotStart = createBogotaDateTime(dateStr, minutesToTime(currentMin));
 
-    // Descartar horarios en el pasado
+    // Descartar horarios en el pasado para el día actual
     if (slotStart.getTime() <= now.getTime()) {
       continue;
     }

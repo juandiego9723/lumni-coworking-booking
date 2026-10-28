@@ -30,7 +30,7 @@ export interface QuoteResult {
   totalAmount: number;
   isAvailable: boolean;
   reason?: string;
-  suggestedNextSlot?: string;
+  suggestedNextSlot?: string | null;
 }
 
 /**

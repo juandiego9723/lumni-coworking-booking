@@ -34,12 +34,19 @@ describe('Quoter Domain Logic', () => {
     expect(pricing.totalAmount).toBe(180000);
   });
 
-  it('validates schedule rules correctly', () => {
+  it('validates schedule rules correctly according to specification', () => {
     const valid = validateSchedule('2026-10-24', '08:00', 2, refDate);
     expect(valid.isValid).toBe(true);
 
+    // 20:00 + 3h = 23:00 (supera las 21:00)
     const invalidTime = validateSchedule('2026-10-23', '20:00', 3, refDate);
     expect(invalidTime.isValid).toBe(false);
+    expect(invalidTime.reason).toBe('El horario de atención es de lunes a sábado de 07:00 a 21:00.');
+
+    // Domingo cerrado
+    const sunday = validateSchedule('2026-10-25', '10:00', 2, refDate);
+    expect(sunday.isValid).toBe(false);
+    expect(sunday.reason).toBe('El coworking está cerrado los domingos.');
   });
 
   it('rejects bookings in the past (e.g. today at 9am when it is 6pm)', () => {

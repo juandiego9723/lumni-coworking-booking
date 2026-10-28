@@ -79,7 +79,7 @@ export function validateBookingSchedule(
     };
   }
 
-  // Validación de fecha/hora en el pasado
+  // 1. Bloqueo estricto de fechas y horas pasadas (hora de Colombia, UTC-5)
   const startsAt = createBogotaDateTime(dateStr, startTimeStr);
   const now = referenceDate ?? getNowBogota();
 

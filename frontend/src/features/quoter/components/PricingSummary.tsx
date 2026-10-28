@@ -26,7 +26,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
   return (
     <Card variant="outlined" sx={{ borderRadius: 3, p: 1 }}>
       <CardContent>
-        {/* Disponibilidad */}
+        {/* Estado de Disponibilidad y Alertas */}
         {quoteResult.isAvailable ? (
           <Alert severity="success" sx={{ mb: 2, borderRadius: 2, fontWeight: 600 }}>
             ¡Horario disponible para reservar!
@@ -36,6 +36,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             <Alert severity="error" sx={{ mb: 1.5, borderRadius: 2, fontWeight: 500 }}>
               {quoteResult.reason || 'Horario no disponible'}
             </Alert>
+
             {quoteResult.suggestedNextSlot && (
               <Alert
                 severity="warning"
@@ -58,6 +59,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
           </Box>
         )}
 
+        {/* Desglose Oficial de Cotización (Siempre presente según especificación del PDF) */}
         <Typography variant="overline" sx={{ fontWeight: 800, color: 'text.secondary', letterSpacing: 1 }}>
           Desglose de Cotización
         </Typography>
@@ -72,7 +74,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             </Typography>
           </Box>
 
-          {quoteResult.discountAmount > 0 && (
+          {(quoteResult.discountAmount ?? 0) > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'success.main' }}>
               <Typography variant="body2">Descuento duración:</Typography>
               <Typography variant="body2" fontWeight={600}>
@@ -81,7 +83,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
             </Box>
           )}
 
-          {quoteResult.surchargeAmount > 0 && (
+          {(quoteResult.surchargeAmount ?? 0) > 0 && (
             <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'warning.main' }}>
               <Typography variant="body2">Recargo sábado (+25%):</Typography>
               <Typography variant="body2" fontWeight={600}>
@@ -102,6 +104,7 @@ export const PricingSummary: React.FC<PricingSummaryProps> = ({
           </Box>
         </Box>
 
+        {/* Botón de Confirmación: Solo disponible si isAvailable es true */}
         {quoteResult.isAvailable && (
           <Button
             variant="contained"

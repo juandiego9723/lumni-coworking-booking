@@ -23,7 +23,7 @@ export const TimeSelect: React.FC<TimeSelectProps> = ({
   const isToday = selectedDate ? dayjs(selectedDate).isSame(dayjs(), 'day') : false;
   const currentMinutesNow = dayjs().hour() * 60 + dayjs().minute();
 
-  // Horario operativo de 07:00 a 20:30 en bloques de 30 min
+  // Horario operativo de 07:00 a 20:30 en bloques de 30 min (cierre a las 21:00)
   const timeSlots = Array.from({ length: 28 }).map((_, idx) => {
     const totalMins = 7 * 60 + idx * 30;
     const h = Math.floor(totalMins / 60).toString().padStart(2, '0');
