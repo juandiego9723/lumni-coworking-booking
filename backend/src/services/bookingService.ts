@@ -167,6 +167,21 @@ export async function confirmBooking(
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
+      // Verificar solapamiento dentro de la transacción antes de confirmar
+      const overlapping = await tx.booking.findFirst({
+        where: {
+          roomId: booking.roomId,
+          status: 'CONFIRMED',
+          id: { not: bookingId },
+          startsAt: { lt: booking.endsAt },
+          endsAt: { gt: booking.startsAt },
+        },
+      });
+
+      if (overlapping) {
+        throw new Error('El horario seleccionado acaba de ser reservado por otro cliente. Por favor elige otro.');
+      }
+
       const confirmed = await tx.booking.update({
         where: { id: bookingId },
         data: { status: 'CONFIRMED' },
@@ -190,7 +205,15 @@ export async function confirmBooking(
 
     return { booking: updated, alreadyConfirmed: false };
   } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code: string }).code === '23P01') {
+    const msg = error instanceof Error ? error.message : '';
+    const code = typeof error === 'object' && error !== null && 'code' in error ? String((error as { code: unknown }).code) : '';
+    if (
+      code === '23P01' ||
+      msg.includes('23P01') ||
+      msg.includes('booking_no_overlap') ||
+      msg.includes('exclusion constraint') ||
+      msg.includes('acaba de ser reservado')
+    ) {
       throw new Error('El horario seleccionado acaba de ser reservado por otro cliente. Por favor elige otro.');
     }
     throw error;

@@ -32,7 +32,7 @@ npx prisma migrate deploy
 # Poblar datos iniciales (Salas y Usuarios sembrados)
 npm run db:seed
 
-# Correr pruebas unitarias (22 tests pasando)
+# Correr pruebas unitarias (43 tests pasando)
 npm test
 
 # Iniciar servidor backend en modo desarrollo (puerto 3001)
@@ -47,6 +47,9 @@ npm install
 
 # Iniciar cliente web en modo desarrollo (puerto 3000)
 npm run dev
+
+# (Opcional) Ejecutar suite de pruebas End-to-End con Playwright
+npm run test:e2e
 ```
 
 Abre en tu navegador: **`http://localhost:3000`**.
@@ -57,7 +60,7 @@ Abre en tu navegador: **`http://localhost:3000`**.
 
 1. **Separación de Capas y Dominio Puro (`/backend/src/domain`):**
    - La lógica crítica de tarifas, descuentos por horas, recargos de sábados y la máquina de estados de reservas se diseñaron como **funciones puras en TypeScript**, completamente desacopladas de Express y de Prisma.
-   - Esto permite que la suite de **22 pruebas unitarias en Vitest** se ejecute en menos de 500 milisegundos sin requerir conexión a base de datos.
+   - Esto permite que la suite de **43 pruebas unitarias en Vitest** se ejecute en menos de 700 milisegundos sin requerir conexión a base de datos.
 
 2. **Zona Horaria de Negocio (`America/Bogota`, UTC-5):**
    - Todas las validaciones de horario (07:00 a 21:00, lunes a sábado, domingo cerrado) y los cálculos de fechas relativas se calculan estrictamente en la zona horaria colombiana para evitar desfasajes por el horario del servidor o cliente.
@@ -116,7 +119,8 @@ La especificación exige que el asistente ignore cualquier instrucción del usua
   - *Por qué se corrigió:* Violaba la regla crítica de arquitectura de la prueba técnica (*"La lógica de dominio debe estar en funciones puras sin depender de la base de datos ni de Express"*). Al depender de Prisma, los tests unitarios fallaban si el cliente no estaba compilado. Se refactorizó para definir `RoomSize` como un tipo estructural puro en TypeScript (`export type RoomSize = 'SMALL' | 'MEDIUM' | 'LARGE'`), logrando un desacoplamiento del 100% y compatibilidad nativa con Prisma sin dependencias externas.
   - *Otro Caso:* En la resolución de fechas relativas, la expresión `en la mañana` era confundida con `mañana` (día siguiente). Se implementó un negative lookbehind en regex (`/(?<!(en la|por la)\s+)\bmanana\b/`) para aislar los momentos del día de las fechas calendario.
 - **Qué verifiqué personalmente:**
-  - Ejecución de las 22 pruebas unitarias automatizadas en Vitest.
+  - Ejecución de las 43 pruebas unitarias automatizadas en Vitest (`npm --prefix backend test`).
+  - Ejecución de las 5 pruebas End-to-End en Playwright (`npm --prefix frontend run test:e2e`) validando el flujo completo en navegador real y API.
   - Compilación sin errores en TypeScript en modo estricto (`tsc`) tanto en `/backend` como en `/frontend`.
   - Integridad de las 5 consultas analíticas en `consultas.sql` y el análisis de causa raíz en `INCIDENTE.md`.
 
@@ -124,7 +128,7 @@ La especificación exige que el asistente ignore cualquier instrucción del usua
 
 ## 📦 Qué se dejó por fuera y por qué
 - **Servidor SMTP Real:** La especificación de la Parte 2.1 aclara que no hace falta un proveedor real. Se implementó captura local y auditoría en memoria (`capturedEmailsLog`), visible directamente en la consola del backend y en el panel de administración.
-- **Autenticación con contraseñas complejas:** Se implementó una autenticación simple por headers (`x-user-id`) entre los dos usuarios sembrados (`cliente@lumni.com` vs `admin@lumni.com`), cumpliendo exactamente la directriz de la Parte 1.3 sin sobrecargar el proyecto con JWTs o flujos OAuth innecesarios para el alcance de la prueba.
+- **Autenticación con contraseñas complejas:** Se implementó una pantalla de Login por correo electrónico (`cliente@lumni.com` vs `admin@lumni.com`) que adapta dinámicamente el menú según el rol e inyecta los headers `x-user-id` y `x-user-email`, cumpliendo la directriz de la Parte 1.3 sin sobrecargar el proyecto con JWTs o flujos OAuth innecesarios para el alcance de la prueba.
 
 ---
 

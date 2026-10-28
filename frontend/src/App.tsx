@@ -95,8 +95,8 @@ export const AppContent: React.FC = () => {
         {currentTab === 'admin' && isAdmin && <AdminPage />}
       </Box>
 
-      {/* Widget de Asistente de IA (Módulo 2.2) */}
-      <ChatWidget onOpenDraftInWizard={handleOpenDraftInWizard} />
+      {/* Widget de Asistente de IA (Módulo 2.2 - Exclusivo para Clientes) */}
+      {!isAdmin && <ChatWidget onOpenDraftInWizard={handleOpenDraftInWizard} />}
 
       <Footer />
     </Box>
