@@ -23,8 +23,12 @@ export function useBookingDraft({ initialQuoteData, onBookingConfirmed }: UseBoo
   const [confirmedBooking, setConfirmedBooking] = useState<Booking | null>(null);
 
   // Campos
-  const [customerName, setCustomerName] = useState('Juan Cliente');
-  const [customerEmail, setCustomerEmail] = useState('cliente@lumni.com');
+  const [customerName, setCustomerName] = useState(
+    () => localStorage.getItem(LOCAL_STORAGE_KEYS.USER_NAME) || 'Juan Cliente'
+  );
+  const [customerEmail, setCustomerEmail] = useState(
+    () => localStorage.getItem(LOCAL_STORAGE_KEYS.USER_EMAIL) || 'cliente@lumni.com'
+  );
 
   const [roomId, setRoomId] = useState<number>(
     initialQuoteData?.quoteResult?.roomId ||

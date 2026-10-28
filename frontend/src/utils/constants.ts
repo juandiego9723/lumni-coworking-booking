@@ -15,5 +15,9 @@ export const LOCAL_STORAGE_KEYS = {
   DRAFT_ID: 'lumni_active_draft_id',
   AI_CHAT_SESSION_ID: 'lumni_ai_chat_session_id',
   ACTIVE_ROLE: 'lumni_active_role',
+  AUTH_LOGGED_IN: 'lumni_auth_logged_in',
+  USER_ID: 'lumni_auth_user_id',
+  USER_EMAIL: 'lumni_auth_user_email',
+  USER_NAME: 'lumni_auth_user_name',
 };
 

@@ -1,17 +1,25 @@
 import { APP_CONFIG } from '../config/appConfig';
+import { LOCAL_STORAGE_KEYS } from '../utils/constants';
 
 export interface RequestOptions extends RequestInit {
   userId?: number;
 }
 
 export async function apiClient<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  const { userId = 1, headers, ...rest } = options;
+  const savedUserId = localStorage.getItem(LOCAL_STORAGE_KEYS.USER_ID);
+  const savedUserEmail = localStorage.getItem(LOCAL_STORAGE_KEYS.USER_EMAIL);
+
+  const effectiveUserId = options.userId ?? (savedUserId ? Number(savedUserId) : 1);
+  const effectiveUserEmail = savedUserEmail || (effectiveUserId === 2 ? APP_CONFIG.users.admin.email : APP_CONFIG.users.client.email);
+
+  const { userId: _ignore, headers, ...rest } = options;
   const url = `${APP_CONFIG.apiBaseUrl}${endpoint}`;
   const method = options.method || 'GET';
 
   const finalHeaders: HeadersInit = {
     'Content-Type': 'application/json',
-    'x-user-id': String(userId),
+    'x-user-id': String(effectiveUserId),
+    'x-user-email': effectiveUserEmail,
     ...headers,
   };
 

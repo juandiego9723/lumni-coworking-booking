@@ -6,8 +6,9 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import 'dayjs/locale/es';
 import { theme } from './styles/theme';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header, Footer } from './components/layout';
+import LoginPage from './pages/LoginPage';
 import QuoterPage from './pages/QuoterPage';
 import BookingWizardPage from './pages/BookingWizardPage';
 import AdminPage from './pages/AdminPage';
@@ -16,6 +17,7 @@ import { RoomSize, QuoteResponse } from './types';
 import { LOCAL_STORAGE_KEYS } from './utils/constants';
 
 export const AppContent: React.FC = () => {
+  const { isAuthenticated, role, isAdmin } = useAuth();
   const [currentTab, setCurrentTab] = useState<'quoter' | 'wizard' | 'admin'>('quoter');
   const [hasActiveDraft, setHasActiveDraft] = useState<boolean>(false);
 
@@ -36,6 +38,17 @@ export const AppContent: React.FC = () => {
     checkActiveDraft();
   }, [currentTab]);
 
+  // Adapta la pestaña automáticamente según el rol autenticado
+  useEffect(() => {
+    if (isAdmin) {
+      setCurrentTab('admin');
+    } else {
+      if (currentTab === 'admin') {
+        setCurrentTab('quoter');
+      }
+    }
+  }, [role, isAdmin, isAuthenticated]);
+
   const handleProceedToBooking = (quoteData: {
     roomSize: RoomSize;
     date: string;
@@ -54,6 +67,11 @@ export const AppContent: React.FC = () => {
     checkActiveDraft();
   };
 
+  // Si no está autenticado, muestra la pantalla de Login
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={checkActiveDraft} />;
+  }
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: '#f8fafc' }}>
       <Header
@@ -67,14 +85,14 @@ export const AppContent: React.FC = () => {
           <QuoterPage onProceedToBooking={handleProceedToBooking} />
         )}
 
-        {currentTab === 'wizard' && (
+        {currentTab === 'wizard' && !isAdmin && (
           <BookingWizardPage
             initialQuoteData={quoteForBooking}
             onBookingConfirmed={checkActiveDraft}
           />
         )}
 
-        {currentTab === 'admin' && <AdminPage />}
+        {currentTab === 'admin' && isAdmin && <AdminPage />}
       </Box>
 
       {/* Widget de Asistente de IA (Módulo 2.2) */}
