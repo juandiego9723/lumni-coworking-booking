@@ -63,10 +63,9 @@ El sistema tiene dos reglas que entran en conflicto directo al final de la tarde
 
 ## 4. Mensaje para el Equipo Comercial (4 líneas)
 
-Hola equipo, ya identificamos qué pasó: los recordatorios de reservas en borrador creados después de las 5:00 p.m. quedaban en pausa a las 6:00 p.m. por la regla de no escribir de noche, pero el sistema los daba por vencidos automáticamente a las 2 horas antes de que llegaran las 8:00 a.m. del día siguiente.
-Ya corregimos el sistema para que los borradores creados al final de la tarde queden programados automáticamente para las 8:00 a.m. del día siguiente sin vencerse durante la noche.
-Mañana a las 8:30 a.m. enviaremos el recordatorio únicamente a los clientes recientes cuya reserva siga en borrador, tenga fecha futura y no hayan recibido ningún mensaje previo.
-Antes de enviarlo les compartiremos la lista filtrada de clientes para su validación, y dejamos alertas activas para detectar de inmediato si algún recordatorio no sale a tiempo.
+Identificamos que los recordatorios creados después de las 5 p.m. quedaban pausados durante la noche y vencían antes de poder enviarse.
+Ya se corrigio proceso para que se programen automáticamente al día siguiente.
+A las 8:30 a.m. enviaremos los recordatorios a clientes con reservas futuras sin mensajes previos. Dejamos alertas activas para detectar cualquier inconveniente.
 
 ---
 
